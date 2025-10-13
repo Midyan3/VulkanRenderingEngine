@@ -43,6 +43,7 @@ struct VertexInputDescription
 struct GraphicsPipelineConfig
 {
     std::vector<ShaderStage> shaders;
+    std::vector<VkPushConstantRange> pushConstantRanges;
     VertexInputDescription vertexInput;
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     VkPolygonMode polygonMode = VK_POLYGON_MODE_FILL;

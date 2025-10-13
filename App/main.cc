@@ -1,4 +1,4 @@
-﻿// Initializes all core systems and renders a single *Vulkan* triangle.
+﻿// Initializes all core systems and renders a single "spinning" *Vulkan* triangle.
 
 #include "../Core/Window/Window.h"
 #include "../Core/Window/OS-Windows/Win32/Win32Window.h"
@@ -15,6 +15,11 @@
 #include "../Core/Renderer/VulkanSynchronization/VulkanSynchronization.h"
 #include "../Core/Application/Application.h"
 #include "../Core/Application/WindowSpec/WindowSpec.h"
+#include "../Core/Renderer//VertexTypes/Vertex.h"
+
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <chrono>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -73,11 +78,26 @@ public:
             );
         }
 
+        // Adding descriptions for vertex buffer 2.
+        auto bindingDescription = Vertex::GetBindingDescription();
+        auto attributeDescriptions = Vertex::GetAttributeDescriptions();
+        // End of 2.
+        
         m_pipeline = std::make_shared<VulkanGraphicsPipeline>();
         GraphicsPipelineConfig pipelineConfig = GraphicsPipelineConfig::SimpleTriangle(
             "Shaders/triangle.vert.spv",
             "Shaders/triangle.frag.spv"
         );
+
+        pipelineConfig.vertexInput.bindings = {bindingDescription};
+        pipelineConfig.vertexInput.attributes = { attributeDescriptions.begin(), attributeDescriptions.end()};
+
+        VkPushConstantRange pushConstantRange{};
+        pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        pushConstantRange.offset = 0;
+        pushConstantRange.size = sizeof(glm::mat4);
+        pipelineConfig.pushConstantRanges = { pushConstantRange };
+
         pipelineConfig.viewport = m_swapchain->GetExtent();
         m_pipeline->Initialize(m_instance, m_device, m_renderPass, pipelineConfig);
 
@@ -85,10 +105,33 @@ public:
         m_commandBuffer->Initialize(m_instance, m_device, m_device->GetGraphicsQueueFamily());
 
         m_sync = std::make_shared<VulkanSynchronization>();
-        m_sync->Initialize(m_instance, m_device, 2);
+        m_sync->Initialize(m_instance, m_device, 3, imageCount);
 
-        m_commandBuffers = m_commandBuffer->AllocateCommandBuffers(m_sync->GetMaxFramesInFlight());
+        m_commandBuffers = m_commandBuffer->AllocateCommandBuffers(imageCount);
         m_currentFrame = 0;
+
+        std::vector<Vertex> vertices = {
+       {{0.0f, -0.7f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+       {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},   
+       {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}   
+        };
+
+        m_allocator = std::make_shared<VulkanMemoryAllocator>(); 
+
+        m_allocator->Initialize(m_instance, m_device);
+
+        m_allocator->CreateVertexBuffer(
+            m_commandBuffer.get(),
+            vertices.data(),
+            sizeof(Vertex) * vertices.size(),
+            m_vertexBuffer
+        );
+
+        m_window->OnResized([&](int width, int height)
+            {
+                m_swapchain->Recreate();
+            }
+        ); 
 
         std::cout << "Initialization complete\n";
         std::cout << m_surface->GetSurfaceInfo() << "\n";
@@ -97,7 +140,12 @@ public:
         std::cout << m_pipeline->GetPipelineInfo() << "\n";
     }
 
-    void Update(float deltaTime) override {}
+    void Update(float deltaTime) override 
+    {
+        m_rotation += deltaTime * 45.0f;  
+        if (m_rotation > 360.0f)
+            m_rotation -= 360.0f;
+    }
 
     void Render() override
     {
@@ -105,14 +153,10 @@ public:
         m_sync->WaitForFence(m_currentFrame);
 
         uint32_t imageIndex;
-        if (!m_swapchain->AcquireNextImage(
-            imageIndex,
-            m_sync->GetFrameSync(m_currentFrame).imageAvailableSemaphore,
+        if (!m_swapchain->AcquireNextImage(imageIndex,
+            m_sync->GetImageSync(m_currentFrame).imageAvailableSemaphore,
             VK_NULL_HANDLE))
-        {
-            std::cerr << "Failed to acquire swapchain image\n";
             return;
-        }
 
         m_sync->ResetFence(m_currentFrame);
 
@@ -121,47 +165,47 @@ public:
         m_commandBuffer->BeginRecording(cmd);
 
         auto clearValues = m_renderPass->GetDefaultClearValues();
-        m_renderPass->Begin(
-            cmd,
-            m_framebuffers[imageIndex]->GetFramebuffer(),
-            m_swapchain->GetExtent(),
-            clearValues
-        );
+        m_renderPass->Begin(cmd, m_framebuffers[imageIndex]->GetFramebuffer(),
+            m_swapchain->GetExtent(), clearValues);
 
         m_pipeline->Bind(cmd);
+
+        glm::mat4 transform = glm::rotate(glm::mat4(1.0f),
+            glm::radians(m_rotation),
+            glm::vec3(0.0f, 0.0f, 1.0f));
+
+        vkCmdPushConstants(cmd,
+            m_pipeline->GetLayout(),
+            VK_SHADER_STAGE_VERTEX_BIT,
+            0,
+            sizeof(glm::mat4),
+            &transform);
+        
+        VkBuffer vertexBuffers[] = { m_vertexBuffer.buffer };
+        VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
+
         vkCmdDraw(cmd, 3, 1, 0, 0);
 
         m_renderPass->End(cmd);
+          
         m_commandBuffer->EndRecording(cmd);
 
-        VkSubmitInfo submitInfo = {};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        // Changed to use class functions instead of redoing work. 1.
+        m_commandBuffer->Submit(
+            cmd,
+            m_device->GetGraphicsQueue(),
+            { m_sync->GetImageSync(m_currentFrame).imageAvailableSemaphore },
+            { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT },
+            { m_sync->GetImageSync(m_currentFrame).renderFinishedSemaphore },
+            m_sync->GetFrameSync(m_currentFrame).inFlightFence
+        );
 
-        VkSemaphore waitSemaphores[] = { m_sync->GetFrameSync(m_currentFrame).imageAvailableSemaphore };
-        VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-        submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = waitSemaphores;
-        submitInfo.pWaitDstStageMask = waitStages;
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &cmd;
+        m_swapchain->PresentImage(imageIndex,
+            { m_sync->GetImageSync(imageIndex).renderFinishedSemaphore });
 
-        VkSemaphore signalSemaphores[] = { m_sync->GetFrameSync(m_currentFrame).renderFinishedSemaphore };
-        submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = signalSemaphores;
+        // End of 1.
 
-        vkQueueSubmit(m_device->GetGraphicsQueue(), 1, &submitInfo, m_sync->GetFrameSync(m_currentFrame).inFlightFence);
-
-        VkPresentInfoKHR presentInfo = {};
-        presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-        presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = signalSemaphores;
-
-        VkSwapchainKHR swapchains[] = { m_swapchain->GetSwapchain() };
-        presentInfo.swapchainCount = 1;
-        presentInfo.pSwapchains = swapchains;
-        presentInfo.pImageIndices = &imageIndex;
-
-        vkQueuePresentKHR(m_device->GetPresentQueue(), &presentInfo);
         m_currentFrame = (m_currentFrame + 1) % m_sync->GetMaxFramesInFlight();
     }
 
@@ -175,9 +219,12 @@ private:
     std::shared_ptr<VulkanGraphicsPipeline> m_pipeline;
     std::shared_ptr<VulkanCommandBuffer> m_commandBuffer;
     std::shared_ptr<VulkanSynchronization> m_sync;
+    std::shared_ptr<VulkanMemoryAllocator> m_allocator;  
     std::shared_ptr<Window> m_window;
     std::vector<VkCommandBuffer> m_commandBuffers;
     uint32_t m_currentFrame;
+    AllocatedBuffer m_vertexBuffer;  
+    float m_rotation = 0.0f;
 };
 
 Application* CreateApplication()

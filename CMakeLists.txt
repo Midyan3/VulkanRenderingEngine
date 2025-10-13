@@ -80,6 +80,7 @@ add_executable(OwnGameEngine
     Core/Renderer/VulkanGraphicsPipeline/VulkanGraphicsPipeline.h
     Core/Renderer/VulkanSynchronization/VulkanSynchronization.cpp
     Core/Renderer/VulkanSynchronization/VulkanSynchronization.h
+    Core/Renderer/VertexTypes/Vertex.h
 )
 
 add_dependencies(OwnGameEngine CompileShaders)

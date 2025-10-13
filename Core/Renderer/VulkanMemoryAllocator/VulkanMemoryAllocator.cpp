@@ -58,7 +58,6 @@ bool VulkanMemoryAllocator::InvalidateMappedMemory(
 		ReportError("Failed to flush buffer memory. 0x00003510");
 		return false;
 	}
-
 	
 	return true;
 }
@@ -396,7 +395,7 @@ bool VulkanMemoryAllocator::Initialize(
 
 	VmaAllocatorCreateInfo allocatorInfo = {}; 
 
-	allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_4;
+	allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_3;
 	allocatorInfo.physicalDevice = m_device->GetPhysicalDevice(); 
 	allocatorInfo.device = m_device->GetDevice(); 
 	allocatorInfo.instance = m_instance->GetInstance();

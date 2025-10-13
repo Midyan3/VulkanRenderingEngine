@@ -161,8 +161,10 @@ bool VulkanGraphicsPipeline::CreatePipelineLayout()
     pipelineInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO; 
     pipelineInfo.setLayoutCount = 0;
     pipelineInfo.pSetLayouts = nullptr;
-    pipelineInfo.pushConstantRangeCount = 0;
-    pipelineInfo.pPushConstantRanges = nullptr;
+    //Add pushConstant 3.
+    pipelineInfo.pushConstantRangeCount = static_cast<uint32_t>(m_config.pushConstantRanges.size());
+    pipelineInfo.pPushConstantRanges = m_config.pushConstantRanges.data();
+    //End of 3.
 
     VkResult result = vkCreatePipelineLayout(
         m_device->GetDevice(),
