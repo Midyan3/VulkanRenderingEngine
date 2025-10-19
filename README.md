@@ -6,6 +6,42 @@
 ![Platform](https://img.shields.io/badge/Platform-Windows%20(Win32)-lightgrey.svg)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 
+# Update 2
+
+![Building](Docs/Images/WASD+OBJ_LOADING.png)
+
+## New Features
+- **Input System** — Keyboard and mouse handling with per-frame edge detection
+- **Camera System** — First-person camera with full 3D movement
+- **OBJ Model Loader** — Wavefront .OBJ parser supporting:
+  - Vertex positions, normals, and texture coordinates
+  - Face triangulation for n-gons (fan method)
+  - Vertex de-duplication for optimized indices
+
+## Controls
+- **W / A / S / D** — Move forward / left / backward / right  
+- **Mouse** — Look around (first-person)  
+- **Space** — Move up  
+- **Ctrl** — Move down
+
+## Code Quality
+- Refactored `main.cc` for readability and maintainability
+- Split rendering into focused functions
+- Clarified initialization sequence
+
+## Bug Fixes
+- Fixed GLM alignment/defines causing geometry corruption
+- Corrected descriptor set binding for the model pipeline
+- Fixed shader compilation and asset loading paths
+
+## Loading Your Own OBJ
+Place your model in `App/Models/`, then change the loaded filename in code
+from the sample `"Residential Buildings 010.obj"` to your file name.
+Make sure your post-build step copies `App/Models/` into the executable’s
+output directory so relative paths resolve correctly.
+ 
+
+---
 My journey building a graphics renderer from absolute scratch. No game engines, no shortcuts, just me, the Vulkan specification, and a lot of determination to understand how modern games actually work under the hood.
 
 ![Triangle Render](Docs/Images/FIRST_TRIANGLE.png)

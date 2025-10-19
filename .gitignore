@@ -27,6 +27,8 @@ dist/
 *.cache
 *.tmp
 
+$null
+
 *.spv
 
 .DS_Store

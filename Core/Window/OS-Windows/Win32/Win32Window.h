@@ -24,6 +24,7 @@ private:
 	std::vector<KeyCallback> m_keyCallbacks;
 	std::vector<MouseButtonCallback> m_mouseButtonCallbacks;
 	std::vector<MouseMoveCallback> m_mouseMoveCallbacks;
+	std::vector<MouseWheelCallback> m_mouseScroll;
 
 	// Member variable
 	const static Debug::DebugOutput DebugOut;
@@ -55,6 +56,7 @@ private:
 	void OnWin32KeyEvent(WPARAM wParam, bool isPressed);         
 	void OnWin32MouseButton(WPARAM wParam, LPARAM lParam, std::pair<WindowStateENUM::MouseButtonState, bool>, std::pair<int, int>);
 	void OnWin32MouseMove(LPARAM lParam);
+	void OnWin32MouseScroll(uint32_t delta);
 
 	//Helper
 	std::optional<std::pair<WindowStateENUM::MouseButtonState, bool>> GetMouseButtonInfo(UINT msg);
@@ -80,6 +82,8 @@ public:
 	virtual int GetWidth() const override { return m_width; }
 	virtual int GetHeight() const override { return m_height; }
 	virtual bool IsVisible() const override;
+	virtual bool SetUpMouseAndKeyboard() override;
+
 	std::string GetTitle() const { return m_title;} 
 
 	// Event handling function to handle window events
@@ -91,6 +95,8 @@ public:
 	virtual void OnKeyEvent(KeyCallback callback) override;
 	virtual void OnMouseButton(MouseButtonCallback callback) override;
 	virtual void OnMouseMove(MouseMoveCallback callback) override;
+	virtual void OnMouseScroll(MouseWheelCallback callback) override;
+
 
 	bool IsInitialized() const { return m_hwnd == nullptr; }
 

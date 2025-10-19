@@ -45,6 +45,7 @@ struct GraphicsPipelineConfig
     std::vector<ShaderStage> shaders;
     std::vector<VkPushConstantRange> pushConstantRanges;
     VertexInputDescription vertexInput;
+    std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     VkPolygonMode polygonMode = VK_POLYGON_MODE_FILL;
     VkCullModeFlags cullMode = VK_CULL_MODE_BACK_BIT;

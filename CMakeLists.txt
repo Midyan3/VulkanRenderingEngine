@@ -39,6 +39,7 @@ endforeach()
 
 add_custom_target(CompileShaders ALL DEPENDS ${SHADER_BINARIES})
 
+
 add_executable(OwnGameEngine
     #Winodw and App specific / The App
     App/main.cc
@@ -81,7 +82,29 @@ add_executable(OwnGameEngine
     Core/Renderer/VulkanSynchronization/VulkanSynchronization.cpp
     Core/Renderer/VulkanSynchronization/VulkanSynchronization.h
     Core/Renderer/VertexTypes/Vertex.h
+    Core/Camera/Camera.h 
+    Core/Camera/Camera.cpp 
+    Core/Math/Quaternions.h
+    Core/Renderer/VulkanDescriptor/VulkanDescriptor.h
+    Core/Renderer/VulkanDescriptor/VulkanDescriptor.cpp
+    Core/Input/Input.h
+    Core/Input/Input.cpp
+    Core/Loaders/OBJLoader/OBJLoader.cpp
+    Core/Loaders/OBJLoader/OBJLoader.h
+    Core/Loaders/ModelLoader.h
+    Core/Loaders/Model.h
+    Core/Loaders/ModelLoader.cpp
+    Core/Renderer/VertexTypes/ModelVertex.h
+
 )
+
+ add_custom_command(
+    TARGET OwnGameEngine POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/App/Models"
+            "$<TARGET_FILE_DIR:OwnGameEngine>/Models"
+)
+
 
 add_dependencies(OwnGameEngine CompileShaders)
 

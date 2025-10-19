@@ -151,6 +151,7 @@ bool VulkanGraphicsPipeline::LoadShaderModule(const std::string& filepath, VkSha
         return false;
     }
 
+
     return true;
 }
 
@@ -159,8 +160,8 @@ bool VulkanGraphicsPipeline::CreatePipelineLayout()
     VkPipelineLayoutCreateInfo pipelineInfo = {};
 
     pipelineInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO; 
-    pipelineInfo.setLayoutCount = 0;
-    pipelineInfo.pSetLayouts = nullptr;
+    pipelineInfo.setLayoutCount = static_cast<uint32_t>(m_config.descriptorSetLayouts.size());
+    pipelineInfo.pSetLayouts = (m_config.descriptorSetLayouts.size() ? m_config.descriptorSetLayouts.data() : nullptr);
     //Add pushConstant 3.
     pipelineInfo.pushConstantRangeCount = static_cast<uint32_t>(m_config.pushConstantRanges.size());
     pipelineInfo.pPushConstantRanges = m_config.pushConstantRanges.data();

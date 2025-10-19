@@ -68,6 +68,7 @@ struct AllocatedBuffer
     VkBufferUsageFlags usage = 0;
     bool isPersistentlyMapped = false;
     void* mappedData = nullptr;
+    VkIndexType indexType = VK_INDEX_TYPE_UINT32;
 
     bool IsValid() const { return buffer != VK_NULL_HANDLE && allocation != VK_NULL_HANDLE; }
 };
@@ -111,8 +112,8 @@ public:
     // RAII
     VulkanMemoryAllocator(const VulkanMemoryAllocator&) = delete;
     VulkanMemoryAllocator& operator=(const VulkanMemoryAllocator&) = delete;
-    VulkanMemoryAllocator(VulkanMemoryAllocator&& other) noexcept;
-    VulkanMemoryAllocator& operator=(VulkanMemoryAllocator&& other) noexcept;
+    //VulkanMemoryAllocator(VulkanMemoryAllocator&& other) noexcept;
+    //VulkanMemoryAllocator& operator=(VulkanMemoryAllocator&& other) noexcept;
 
     // Lifecycle
     bool Initialize(std::shared_ptr<VulkanInstance> instance,

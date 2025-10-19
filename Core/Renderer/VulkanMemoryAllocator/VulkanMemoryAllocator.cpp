@@ -73,7 +73,7 @@ bool VulkanMemoryAllocator::MapMemory(AllocatedBuffer& buffer)
 
 	if (buffer.mappedData)
 	{
-		ReportWarning("Buffer is already mapped. 0x00003220");
+		//ReportWarning("Buffer is already mapped. 0x00003220");
 		return true; 
 	}
 
@@ -185,6 +185,8 @@ bool VulkanMemoryAllocator::CreateIndexBuffer(
 	CopyBuffer(cmd, stagingBuffer, outBuffer, size);
 	commandBuffer->EndSingleTimeCommands(cmd);  // This does everything
 
+	outBuffer.indexType = indexType;
+
 	DestroyBuffer(stagingBuffer);
 	return true;
 }
@@ -248,7 +250,7 @@ bool VulkanMemoryAllocator::CreateUniformBuffer(
 
 
 	if (persistentlyMapped){
-		if (!MapMemory(outBuffer))
+		if (!outBuffer.mappedData && !MapMemory(outBuffer))
 		{
 			DestroyBuffer(outBuffer);
 			ReportError("Failed to persistently map uniform buffer. 0x00FB3610");

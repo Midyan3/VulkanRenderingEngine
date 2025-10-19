@@ -4,13 +4,16 @@
 #include <string>
 #include <memory>
 #include <functional>
+#include "../../Core/Input/Input.h"
 #include "../Application/WindowSpec/WindowSpec.h"
 
 //The abstract base Window class to be used for the implementation of window creation across different platform
 
+class Input;
+
 class Window {
 private:
-	
+
 	struct KeyCreation; 
 
 public: 
@@ -24,6 +27,7 @@ public:
 	using KeyCallback = std::function<void(int keyCode, bool isPressed)>;
 	using MouseButtonCallback = std::function<void(int button, bool isPressed, int x, int y)>;
 	using MouseMoveCallback = std::function<void(int x, int y)>;
+	using MouseWheelCallback = std::function<void(float steps)>;
 
 	//	Deconstrutor
 	virtual ~Window() = default; 
@@ -50,6 +54,9 @@ public:
 	virtual void OnKeyEvent(KeyCallback callback) = 0;
 	virtual void OnMouseButton(MouseButtonCallback callback) = 0;
 	virtual void OnMouseMove(MouseMoveCallback callback) = 0;
+	virtual void OnMouseScroll(MouseWheelCallback callback) = 0;
+
+	virtual bool SetUpMouseAndKeyboard() = 0;
 
 	static std::unique_ptr<Window> Create(const windowSpec::WindowOptions& options);
 

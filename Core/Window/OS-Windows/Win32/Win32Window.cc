@@ -1,4 +1,5 @@
-#include "Win32Window.h"
+﻿#include "Win32Window.h"
+#include <windowsx.h>
 #include <stdexcept>
 
 bool Win32Window::s_classRegistered = false;
@@ -206,7 +207,9 @@ void Win32Window::OnWin32KeyEvent(WPARAM wParam, bool isPressed)
 
 void Win32Window::OnWin32MouseMove(LPARAM lParam) 
 {
-	const int XCord = LOWORD(lParam), YCord = HIWORD(lParam); 
+	const int XCord = GET_X_LPARAM(lParam), YCord = GET_Y_LPARAM(lParam); 
+
+	//std::cout << "X: " << XCord << " Y: " << YCord << std::endl;
 
 	for (auto& callback : m_mouseMoveCallbacks) {
 		try 
@@ -250,6 +253,27 @@ void Win32Window::OnWin32MouseButton(WPARAM wParam, LPARAM lParam, std::pair<Win
 
 			DebugOut.outputDebug("Unexpected Error OnWin32MouseButton");
 
+		}
+	}
+
+}
+
+void Win32Window::OnWin32MouseScroll(uint32_t delta)
+{
+
+	for (auto& callback : m_mouseScroll)
+	{
+		try
+		{
+			callback(delta);
+		}
+		catch (const std::exception& e)
+		{
+			DebugOut.outputDebug(e.what());
+		}
+		catch (...)
+		{
+			DebugOut.outputDebug("Unexpected Error OnMouseScroll");
 		}
 	}
 
@@ -304,6 +328,14 @@ LRESULT Win32Window::HandleMessage(UINT msg, WPARAM wParam, LPARAM lParam)
 			{
 
 				OnWin32KeyEvent(wParam, false);
+
+			}
+				break;
+			case WM_MOUSEWHEEL: 
+			{
+
+				const float steps = static_cast<short>(HIWORD(wParam)) / 120.0f;
+				OnWin32MouseScroll(steps);
 
 			}
 				break;
@@ -460,6 +492,56 @@ void Win32Window::Close() {
 	}
 }
 
+bool Win32Window::SetUpMouseAndKeyboard()
+{
+
+	OnKeyEvent([](int keyCode, bool isPressed)
+		{
+			if (isPressed)
+			{
+				Input::Get().OnKeyPressed(keyCode);
+			}
+			else
+			{
+				Input::Get().OnKeyReleased(keyCode);
+			}
+		});
+
+	OnMouseMove([](int x, int y)
+		{
+			Input::Get().OnMouseMove(static_cast<float>(x), static_cast<float>(y));
+		});
+
+	OnMouseButton([](int button, bool isPressed, int x, int y)
+		{
+			MouseButton btn;
+			switch (button)
+			{
+			case 0: btn = MouseButton::Left; break;
+			case 1: btn = MouseButton::Right; break;
+			case 2: btn = MouseButton::Middle; break;
+			default: return;  
+			}
+
+			if (isPressed)
+			{
+				Input::Get().OnMouseButtonPressed(btn);
+			}
+			else
+			{
+				Input::Get().OnMouseButtonReleased(btn);
+			}
+		});
+
+	OnMouseScroll([](float delta)
+		{
+			Input::Get().OnMouseScroll(delta);
+		});
+
+	return true;
+
+}
+
 void Win32Window::SetSize(int width, int height) 
 {
 	m_width = width;
@@ -474,3 +556,4 @@ void Win32Window::OnResized(ResizedCallback callback) { m_resizedCallbacks.push_
 void Win32Window::OnKeyEvent(KeyCallback callback) { m_keyCallbacks.push_back(callback); }
 void Win32Window::OnMouseButton(MouseButtonCallback callback) { m_mouseButtonCallbacks.push_back(callback); }
 void Win32Window::OnMouseMove(MouseMoveCallback callback) { m_mouseMoveCallbacks.push_back(callback); }
+void Win32Window::OnMouseScroll(MouseWheelCallback callback) { m_mouseScroll.push_back(callback);  }
