@@ -103,7 +103,7 @@ public:
         m_currentFrame = (m_currentFrame + 1) % m_sync->GetMaxFramesInFlight();
         Input::Get().Update();
     }
-
+    
 private:
     void InitializeCore()
     {
@@ -185,11 +185,12 @@ private:
         modelConfig.vertexInput.attributes = { attributeDescriptions.begin(), attributeDescriptions.end() };
 
         VkPushConstantRange pushConstantRange{};
-        pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
         pushConstantRange.offset = 0;
-        pushConstantRange.size = sizeof(glm::mat4);
+        pushConstantRange.size = sizeof(glm::mat4) + sizeof(glm::vec3);
         modelConfig.pushConstantRanges = { pushConstantRange };
         modelConfig.viewport = m_swapchain->GetExtent();
+        modelConfig.cullMode = VK_CULL_MODE_FRONT_BIT; 
 
         m_pendingPipelineConfig = modelConfig;
     }
@@ -253,6 +254,11 @@ private:
         m_pipeline->Initialize(m_instance, m_device, m_renderPass, m_pendingPipelineConfig);
     }
 
+    struct PushConstants {
+        glm::mat4 model;
+        glm::vec3 light;
+    };
+
     void DrawModel(VkCommandBuffer cmd)
     {
         CameraUBO cameraData{};
@@ -284,13 +290,17 @@ private:
         model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1, 0, 0));
         model = glm::rotate(model, glm::radians(m_rotation), glm::vec3(0, 1, 0));
 
+        PushConstants ps{}; 
+        ps.model = model;
+        ps.light = glm::vec3(5.0f , 5.0f, 5.0f);
+
         vkCmdPushConstants(
             cmd,
             m_pipeline->GetLayout(),
-            VK_SHADER_STAGE_VERTEX_BIT,
+            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
             0,
-            sizeof(glm::mat4),
-            &model
+            sizeof(PushConstants),
+            &ps
         );
 
         vkCmdDrawIndexed(cmd, m_modelIndexCount, 1, 0, 0, 0);
@@ -299,9 +309,9 @@ private:
     void LoadModel()
     {
         std::cout << "LoadModel: START\n";
-        auto loader = ModelLoader::CreateLoader("Models/Residential Buildings 010.obj");
+        auto loader = ModelLoader::CreateLoader("Models/ts_bot912.obj");
 
-        if (loader && loader->Load("Models/Residential Buildings 010.obj", m_model))
+        if (loader && loader->Load("Models/ts_bot912.obj", m_model))
         {
             std::cout << "After Load:\n";
             std::cout << "  Vertices: " << m_model.vertices.size() << "\n";

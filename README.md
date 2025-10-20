@@ -6,6 +6,12 @@
 ![Platform](https://img.shields.io/badge/Platform-Windows%20(Win32)-lightgrey.svg)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 
+# Update 2.1
+![Building](Docs/Images/LIGHTING_FIRST.png)
+
+Added lighting with directional lighting.
+
+---
 # Update 2
 
 ![Building](Docs/Images/WASD+OBJ_LOADING.png)

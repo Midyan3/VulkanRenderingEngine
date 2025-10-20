@@ -135,9 +135,9 @@ namespace Model
         static glm::vec3 GenerateColorFromPosition(const glm::vec3& pos)
         {
             return glm::vec3(
-                glm::clamp((pos.x + 1.0f) * 0.5f, 0.0f, 1.0f),
-                glm::clamp((pos.y + 1.0f) * 0.5f, 0.0f, 1.0f),
-                glm::clamp((pos.z + 1.0f) * 0.5f, 0.0f, 1.0f)
+                glm::clamp(/*(pos.x + 1.0f) **/ 0.5f, 0.0f, 1.0f),
+                glm::clamp(/*(pos.y + 1.0f) **/ 0.5f, 0.0f, 1.0f),
+                glm::clamp(/*(pos.z + 1.0f) * */0.5f, 0.0f, 1.0f)
             );
         }
 
