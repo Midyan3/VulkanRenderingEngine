@@ -23,7 +23,7 @@ enum class CameraMovement
 // Camera configuration
 struct CameraSettings
 {
-    float movementSpeed = 5.0f;     
+    float movementSpeed = 100.0f;     
     float mouseSensitivity = 0.1f;   
     float fov = 45.0f;              
     float nearPlane = 0.1f;          

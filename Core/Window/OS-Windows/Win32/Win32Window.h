@@ -5,6 +5,8 @@
 #include "../../../DebugOutput/DubugOutput.h"
 #include "WindowManager/WindowManager.h"
 #include "WindowStateEnum/WindowStateEnum.h"
+#include "imgui_impl_win32.h"
+#include "imgui.h"
 #include <Windows.h>
 #include <unordered_map>
 #include <vector>        

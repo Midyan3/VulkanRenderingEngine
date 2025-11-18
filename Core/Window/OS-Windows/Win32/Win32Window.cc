@@ -5,6 +5,7 @@
 bool Win32Window::s_classRegistered = false;
 const Debug::DebugOutput Win32Window::DebugOut; 
 const wchar_t* Win32Window::s_windowClassName = L"GameEngine";
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 Win32Window::Win32Window(Key key, int width, int height, const std::string& title) 
 	: m_width(width), m_height(height), m_title(title) 
@@ -377,6 +378,12 @@ LRESULT CALLBACK Win32Window::StaticWindowProc(HWND hwnd, UINT msg, WPARAM wPara
 {
 	try 
 	{
+		if (ImGui::GetCurrentContext())
+		{
+			if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
+				return true; 
+		}
+
 		if (msg == WM_NCCREATE) 
 		{
 

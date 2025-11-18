@@ -23,6 +23,10 @@
 #include <chrono>
 #include <algorithm>
 #include <cmath>
+#include "imgui.h"
+#include "imgui_impl_vulkan.h"
+#include "imgui_impl_win32.h"
+#include <cmath>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -50,6 +54,7 @@ public:
         InitializeCommandsAndSync();
         InitializeMemoryAndGeometry();
         InitializeDescriptors();
+        InitalizeImGui(); 
         HookInput();
         LogInitSummary();
     }
@@ -61,6 +66,16 @@ public:
 
         m_rotation += deltaTime * 45.0f;
         if (m_rotation > 360.0f) m_rotation -= 360.0f;
+
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplWin32_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::Begin("Debug");
+        ImGui::Text("FPS: %.1f",  std::floor(1.0f / deltaTime));
+        ImGui::End();
+
+        ImGui::Render();
     }
 
     void Render() override
@@ -82,6 +97,7 @@ public:
 
         BeginRenderPass(cmd, imageIndex);
         DrawModel(cmd);
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
         EndRenderPass(cmd);
 
         m_commandBuffer->EndRecording(cmd);
@@ -101,7 +117,14 @@ public:
         );
 
         m_currentFrame = (m_currentFrame + 1) % m_sync->GetMaxFramesInFlight();
+
+        if (Input::Get().IsKeyPressed(VK::Escape))
+        {
+            Quit(); 
+        }
+
         Input::Get().Update();
+       
     }
     
 private:
@@ -168,6 +191,68 @@ private:
                 m_swapchain->GetExtent().height
             );
         }
+    }
+
+   bool InitalizeImGui()
+    {
+        VkDescriptorPoolSize pool_sizes[] = {
+            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}
+        }; 
+
+        VkDescriptorPoolCreateInfo info{}; 
+        info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO; 
+        info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+        info.maxSets = 1; 
+        info.poolSizeCount = 1; 
+        info.pPoolSizes = pool_sizes; 
+
+        VkResult result = vkCreateDescriptorPool(m_device->GetDevice(), &info, nullptr, &m_imguiPool);
+
+        if (result != VK_SUCCESS)
+        {
+            return false; 
+        }
+
+        IMGUI_CHECKVERSION(); 
+
+        ImGui::CreateContext(); 
+        ImGuiIO& io = ImGui::GetIO(); 
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+        auto winWindow = dynamic_cast<Win32Window*>(m_window.get()); 
+
+        ImGui_ImplWin32_Init(winWindow->GetHWND()); 
+
+        // 4. Setup Vulkan backend with NEW API
+        ImGui_ImplVulkan_InitInfo init_info = {};
+
+        // REQUIRED fields
+        init_info.ApiVersion = VK_API_VERSION_1_3;  // Or VK_API_VERSION_1_2, VK_API_VERSION_1_0, etc.
+        init_info.Instance = m_instance->GetInstance();
+        init_info.PhysicalDevice = m_device->GetPhysicalDevice();
+        init_info.Device = m_device->GetDevice();
+        init_info.QueueFamily = m_device->GetGraphicsQueueFamily();
+        init_info.Queue = m_device->GetGraphicsQueue();
+        init_info.DescriptorPool = m_imguiPool;
+        init_info.MinImageCount = 2;
+        init_info.ImageCount = m_swapchain->GetImageCount();
+
+        // CHANGED: Pipeline info now in PipelineInfoMain struct!
+        init_info.PipelineInfoMain.RenderPass = m_renderPass->GetRenderPass();  // NEW location!
+        init_info.PipelineInfoMain.Subpass = 0;                                  // NEW location!
+        init_info.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;        // NEW location!
+
+        // Optional fields
+        init_info.PipelineCache = VK_NULL_HANDLE;
+        init_info.Allocator = nullptr;
+        init_info.CheckVkResultFn = nullptr;
+        init_info.UseDynamicRendering = false;  // Set to true if using VK_KHR_dynamic_rendering
+
+        // Initialize ImGui Vulkan backend
+        ImGui_ImplVulkan_Init(&init_info);  // Note: no render pass parameter anymore!
+
+
+        return true; 
     }
 
     void InitializePipelineModel()
@@ -309,9 +394,9 @@ private:
     void LoadModel()
     {
         std::cout << "LoadModel: START\n";
-        auto loader = ModelLoader::CreateLoader("Models/ts_bot912.obj");
+        auto loader = ModelLoader::CreateLoader("Models/Residential Buildings 010.obj");
 
-        if (loader && loader->Load("Models/ts_bot912.obj", m_model))
+        if (loader && loader->Load("Models/Residential Buildings 010.obj", m_model))
         {
             std::cout << "After Load:\n";
             std::cout << "  Vertices: " << m_model.vertices.size() << "\n";
@@ -414,6 +499,8 @@ private:
     std::shared_ptr<Window> m_window;
     std::shared_ptr<VulkanDescriptor> m_descriptor;
     std::unique_ptr<Camera> m_camera;
+
+    VkDescriptorPool m_imguiPool = VK_NULL_HANDLE;
 
     std::vector<VkCommandBuffer> m_commandBuffers;
     uint32_t m_currentFrame = 0;

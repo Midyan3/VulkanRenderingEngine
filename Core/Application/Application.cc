@@ -18,7 +18,6 @@ void Application::Run() {
 	//Intailizing the lastTime to start run as well as target time for frames
 	auto lastTime = chronoHighResClock::now();
 	const float targetFrameTime = 1.0f / options.targetFrameRate; 
-	
 	// Calling update every frame and calculate deltaTime;  
 	while (m_running) {
 		auto timeNow = chronoHighResClock::now();
@@ -26,8 +25,15 @@ void Application::Run() {
 		Update(deltaTime); 
 		Render();
 		const float frameTime = std::chrono::duration<float>(chronoHighResClock::now() - timeNow).count();
-		if (frameTime < targetFrameTime) {
-			std::this_thread::sleep_for(std::chrono::duration<float>(targetFrameTime - frameTime)); 
+		{
+			using namespace std; 
+			std::cout << "FPS: " << 1.0f / deltaTime << '\n'; 
+		}
+		if (options.capped)
+		{
+			if (frameTime < targetFrameTime) {
+				std::this_thread::sleep_for(std::chrono::duration<float>(targetFrameTime - frameTime)); 
+			}
 		}
 		lastTime = timeNow; 
 	}

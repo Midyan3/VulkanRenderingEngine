@@ -10,9 +10,26 @@ set(ENV{VULKAN_SDK} "C:/VulkanSDK/1.4.321.1")
 find_package(Vulkan REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+# REMOVED: find_package(imgui CONFIG REQUIRED)
 
+# ImGui Manual Setup
+set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/External/imgui)
+
+set(IMGUI_SOURCES
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_win32.cpp
+)
+
+include_directories(${IMGUI_DIR})
+include_directories(${IMGUI_DIR}/backends)
+
+# Shader compilation setup
 set(GLSLC_EXECUTABLE "${VULKAN_SDK}/Bin/glslc.exe")
-set(SHADER_SOURCE_DIR "${CMAKE_SOURCE_DIR}/Shaders")
+set(SHADER_SOURCE_DIR "${CMAKE_SOURCE_DIR}/Shaders") 
 set(SHADER_BINARY_DIR "${CMAKE_BINARY_DIR}/Shaders")
 
 file(MAKE_DIRECTORY ${SHADER_BINARY_DIR})
@@ -39,9 +56,7 @@ endforeach()
 
 add_custom_target(CompileShaders ALL DEPENDS ${SHADER_BINARIES})
 
-
 add_executable(OwnGameEngine
-    #Winodw and App specific / The App
     App/main.cc
     Core/Application/Application.cc
     Core/Application/Application.h
@@ -56,8 +71,6 @@ add_executable(OwnGameEngine
     Core/Window/OS-Windows/WidnowSetting/WindowSetting.h
     Core/DebugOutput/DubugOutput.h 
     Core/Window/OS-Windows/Win32/WindowStateEnum/WindowStateEnum.h
-    
-    #Vulkan Render Specific / The Core
     Core/Renderer/VulkanInstance/VulkanInstance.h
     Core/Renderer/VulkanInstance/VulkanInstance.cpp
     Core/Renderer/VulkanInstance/VkPropStructs/VkPropStructs.h
@@ -95,16 +108,15 @@ add_executable(OwnGameEngine
     Core/Loaders/Model.h
     Core/Loaders/ModelLoader.cpp
     Core/Renderer/VertexTypes/ModelVertex.h
-
+    ${IMGUI_SOURCES}
 )
 
- add_custom_command(
+add_custom_command(
     TARGET OwnGameEngine POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${CMAKE_SOURCE_DIR}/App/Models"
             "$<TARGET_FILE_DIR:OwnGameEngine>/Models"
 )
-
 
 add_dependencies(OwnGameEngine CompileShaders)
 
@@ -112,4 +124,5 @@ target_link_libraries(OwnGameEngine PRIVATE
     Vulkan::Vulkan
     glm::glm-header-only
     GPUOpen::VulkanMemoryAllocator
+    # REMOVED: imgui::imgui
 )
