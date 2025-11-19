@@ -26,7 +26,6 @@
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_win32.h"
-#include <cmath>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -62,7 +61,8 @@ public:
     void Update(float deltaTime) override
     {
         WindowManager::PollAllWindowEvents();
-        CameraMovement(deltaTime);
+        if(!m_manualOverride)
+             CameraMovement(deltaTime);
 
         m_rotation += deltaTime * 45.0f;
         if (m_rotation > 360.0f) m_rotation -= 360.0f;
@@ -73,9 +73,16 @@ public:
 
         ImGui::Begin("Debug");
         ImGui::Text("FPS: %.1f",  std::floor(1.0f / deltaTime));
+       
+        ImGui::SliderInt("FOV", &m_crest, 0, maxFOV);
+        ImGui::Checkbox("Manual", &m_manualOverride); 
         ImGui::End();
 
         ImGui::Render();
+
+        std::cout << "Int test = " << m_crest << '\n'; 
+
+        m_camera->SetFOV(m_crest);
     }
 
     void Render() override
@@ -127,7 +134,9 @@ public:
        
     }
     
-private:
+private: 
+    int m_crest = 120; 
+    bool m_manualOverride = false; 
     void InitializeCore()
     {
         m_instance = std::make_shared<VulkanInstance>();
@@ -223,11 +232,9 @@ private:
 
         ImGui_ImplWin32_Init(winWindow->GetHWND()); 
 
-        // 4. Setup Vulkan backend with NEW API
         ImGui_ImplVulkan_InitInfo init_info = {};
-
-        // REQUIRED fields
-        init_info.ApiVersion = VK_API_VERSION_1_3;  // Or VK_API_VERSION_1_2, VK_API_VERSION_1_0, etc.
+        
+        init_info.ApiVersion = VK_API_VERSION_1_3;  
         init_info.Instance = m_instance->GetInstance();
         init_info.PhysicalDevice = m_device->GetPhysicalDevice();
         init_info.Device = m_device->GetDevice();
@@ -237,19 +244,16 @@ private:
         init_info.MinImageCount = 2;
         init_info.ImageCount = m_swapchain->GetImageCount();
 
-        // CHANGED: Pipeline info now in PipelineInfoMain struct!
-        init_info.PipelineInfoMain.RenderPass = m_renderPass->GetRenderPass();  // NEW location!
-        init_info.PipelineInfoMain.Subpass = 0;                                  // NEW location!
-        init_info.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;        // NEW location!
+        init_info.PipelineInfoMain.RenderPass = m_renderPass->GetRenderPass();  
+        init_info.PipelineInfoMain.Subpass = 0;                                 
+        init_info.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;       
 
-        // Optional fields
         init_info.PipelineCache = VK_NULL_HANDLE;
         init_info.Allocator = nullptr;
         init_info.CheckVkResultFn = nullptr;
-        init_info.UseDynamicRendering = false;  // Set to true if using VK_KHR_dynamic_rendering
+        init_info.UseDynamicRendering = false;  
 
-        // Initialize ImGui Vulkan backend
-        ImGui_ImplVulkan_Init(&init_info);  // Note: no render pass parameter anymore!
+        ImGui_ImplVulkan_Init(&init_info);  
 
 
         return true; 
@@ -308,6 +312,7 @@ private:
             0.0f
         );
 
+        maxFOV = m_camera->GetSettings().maxFov;
         m_allocator = std::make_shared<VulkanMemoryAllocator>();
         m_allocator->Initialize(m_instance, m_device);
 
@@ -514,7 +519,9 @@ private:
     Model::ModelMesh m_model;
     uint32_t m_modelIndexCount = 0;
     float m_rotation = 0.0f;
+    int maxFOV = 90; 
 };
+
 
 Application* CreateApplication()
 {

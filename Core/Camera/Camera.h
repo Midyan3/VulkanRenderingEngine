@@ -32,7 +32,7 @@ struct CameraSettings
     float minPitch = -89.0f;    
     float maxPitch = 89.0f;
     float minFov = 1.0f;
-    float maxFov = 90.0f;
+    float maxFov = 180.0f;
 };
 
 class Camera
