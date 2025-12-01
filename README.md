@@ -8,6 +8,8 @@
 
 Update 3: Texture System
 
+![Texture_Building](Docs/Images/TEXTURE_UPDATE_3.png)
+
 Added texture loading to the engine:
 - Can load images (JPG, PNG, etc.) from files
 - Textures cache automatically so they load once
