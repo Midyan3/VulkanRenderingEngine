@@ -78,16 +78,16 @@ struct AllocatedImage
     VkImage image = VK_NULL_HANDLE;
     VmaAllocation allocation = VK_NULL_HANDLE;
     VmaAllocationInfo allocationInfo = {};
-    VkExtent3D extent = {};
+    VkExtent3D extent = { 0, 0, 0 };
     VkFormat format = VK_FORMAT_UNDEFINED;
-    VkImageUsageFlags usage = 0;
     uint32_t mipLevels = 1;
     uint32_t arrayLayers = 1;
-    VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
+    VkImageLayout currentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    bool IsValid() const { return image != VK_NULL_HANDLE && allocation != VK_NULL_HANDLE; }
+    bool IsValid() const {
+        return image != VK_NULL_HANDLE && allocation != VK_NULL_HANDLE;
+    }
 };
-
 // Stats
 struct MemoryStatistics
 {

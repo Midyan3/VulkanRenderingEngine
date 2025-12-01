@@ -15,6 +15,8 @@ find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 # ImGui Manual Setup
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/External/imgui)
 
+set(STB_IMAGE_DIR ${CMAKE_SOURCE_DIR}/External/stb_image_header)
+
 set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
@@ -22,6 +24,10 @@ set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui_tables.cpp
     ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp
     ${IMGUI_DIR}/backends/imgui_impl_win32.cpp
+)
+
+set(STB_IMAGE 
+    ${STB_IMAGE_DIR}/stb_image.h
 )
 
 include_directories(${IMGUI_DIR})
@@ -109,13 +115,21 @@ add_executable(OwnGameEngine
     Core/Loaders/ModelLoader.cpp
     Core/Renderer/VertexTypes/ModelVertex.h
     ${IMGUI_SOURCES}
-)
+    ${STB_IMAGE}
+ "Core/Renderer/TextureLoader/Texture.cpp" "Core/Renderer/TextureLoader/Texture.h" "Core/Renderer/VulkanImage/VulkanImage.h" "Core/Renderer/VulkanImage/VulkanImage.cpp" "Core/Renderer/VulkanImageView/VulkanImageView.cpp" "Core/Renderer/VulkanImageView/VulkanImageView.h" "Core/TextureManager/Vulkan/TextureManager.cpp" "Core/TextureManager/Vulkan/TextureManager.h" "App/main.h")
 
 add_custom_command(
     TARGET OwnGameEngine POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${CMAKE_SOURCE_DIR}/App/Models"
             "$<TARGET_FILE_DIR:OwnGameEngine>/Models"
+)
+
+add_custom_command(
+    TARGET OwnGameEngine POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/Textures"
+            "$<TARGET_FILE_DIR:OwnGameEngine>/Textures"
 )
 
 add_dependencies(OwnGameEngine CompileShaders)

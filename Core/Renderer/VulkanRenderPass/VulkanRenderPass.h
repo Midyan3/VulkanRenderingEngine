@@ -58,7 +58,7 @@ struct RenderPassConfig
 {
     std::vector<RenderPassAttachment> attachments;
     std::vector<SubpassConfig> subpasses;
-    VkClearColorValue clearColor = { {0.0f, 0.0f, 0.0f, 1.0f} };
+    VkClearColorValue clearColor = { {15.0f, 15.0f, 15.0f, 1.0f} };
     float clearDepth = 1.0f;
     uint32_t clearStencil = 0;
 
@@ -107,6 +107,9 @@ public:
     uint32_t GetAttachmentCount() const { return static_cast<uint32_t>(m_config.attachments.size()); }
     std::vector<VkClearValue> GetDefaultClearValues() const;
 
+    //Setter
+    void SetNewClearColor(VkClearColorValue clearColor) { if (IsInitialized()) { m_config.clearColor = clearColor; } }
+    
     // Debug
     std::string GetRenderPassInfo() const;
 

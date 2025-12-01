@@ -1,38 +1,4 @@
-﻿// Initializes all core systems and renders a single "spinning" *Vulkan* triangle. Now WASD movemnt, Loading OBJ models and more. REFACTORED
-#include "../Headers/GlmConfig.h"
-#include "../Core/Window/Window.h"
-#include "../Core/Window/OS-Windows/Win32/Win32Window.h"
-#include "../Core/Window/OS-Windows/Win32/WindowManager/WindowManager.h"
-#include "../Core/Renderer/VulkanInstance/VulkanInstance.h"
-#include "../Core/Renderer/VulkanDevice/VulkanDevice.h"
-#include "../Core/Renderer/VulkanSurface/VulkanSurface.h"
-#include "../Core/Renderer/VulkanSwapchain/VulkanSwapchain.h"
-#include "../Core/Renderer/VulkanRenderPass/VulkanRenderPass.h"
-#include "../Core/Renderer/VulkanFrameBuffer/VulkanFrameBuffer.h"
-#include "../Core/Renderer/VulkanGraphicsPipeline/VulkanGraphicsPipeline.h"
-#include "../Core/Renderer/VulkanCommandBuffer/VulkanCommandBuffer.h"
-#include "../Core/Renderer/VulkanMemoryAllocator/VulkanMemoryAllocator.h"
-#include "../Core/Renderer/VulkanSynchronization/VulkanSynchronization.h"
-#include "../Core/Application/Application.h"
-#include "../Core/Application/WindowSpec/WindowSpec.h"
-#include "../Core/Renderer/VertexTypes/Vertex.h"
-#include "../Core/Camera/Camera.h"
-#include "../Core/Renderer/VulkanDescriptor/VulkanDescriptor.h"
-#include "../Core/Loaders/ModelLoader.h"
-#include "../Core/Input/Input.h"
-#include <chrono>
-#include <algorithm>
-#include <cmath>
-#include "imgui.h"
-#include "imgui_impl_vulkan.h"
-#include "imgui_impl_win32.h"
-
-#ifdef _WIN32
-#include <windows.h>
-#include <vulkan/vulkan_win32.h>
-#endif
-
-#include <iostream>
+﻿#include "main.h"
 
 struct CameraUBO
 {
@@ -52,8 +18,9 @@ public:
         InitializePipelineModel();
         InitializeCommandsAndSync();
         InitializeMemoryAndGeometry();
-        InitializeDescriptors();
+        InitializeTextureManager(); 
         InitalizeImGui(); 
+        InitializeDescriptors();
         HookInput();
         LogInitSummary();
     }
@@ -75,12 +42,23 @@ public:
         ImGui::Text("FPS: %.1f",  std::floor(1.0f / deltaTime));
        
         ImGui::SliderInt("FOV", &m_crest, 0, maxFOV);
+        ImGui::SliderFloat("R", &r, 0, 255.0f);
+        ImGui::SliderFloat("G", &g, 0, 255.0f);
+        ImGui::SliderFloat("B", &b, 0, 255.0f);
+        ImGui::SliderFloat("Alpha", &alpha, 0, 1.0f); 
         ImGui::Checkbox("Manual", &m_manualOverride); 
         ImGui::End();
 
         ImGui::Render();
-
-        std::cout << "Int test = " << m_crest << '\n'; 
+        /*/
+        
+        {
+            std::println("R = {}, G = {}, B = {}", r, g, b);
+            std::cout << "Int test = " << m_crest << '\n'; 
+        }
+         
+        
+        */
 
         m_camera->SetFOV(m_crest);
     }
@@ -88,6 +66,8 @@ public:
     void Render() override
     {
         m_sync->WaitForFence(m_currentFrame);
+
+        m_renderPass->SetNewClearColor({ r / 255.0f , g / 255.0f, b / 255.0f, alpha}); 
 
         uint32_t imageIndex;
         if (!m_swapchain->AcquireNextImage(
@@ -173,6 +153,24 @@ private:
         m_surface->Initialize(m_instance, m_device, m_window);
     }
 
+    void InitializeTextureManager()
+    {
+        m_imageManager.Initialize(m_instance, m_device, m_allocator);
+        m_imageViewManager.Initialize(m_instance, m_device);
+        m_textureManager.Initialize(&m_imageManager, &m_imageViewManager,
+            m_device.get(), m_commandBuffer.get());
+
+        m_brickTexture = m_textureManager.GetTexture("Textures/brick.jpg");
+     
+        if (m_brickTexture) {
+            std::cout << "   ImageView: " << (void*)m_brickTexture->GetImageView() << "\n";
+            std::cout << "   Sampler: " << (void*)m_brickTexture->GetSampler() << "\n";
+        }
+        else {
+            std::cout << "Texture pointer is NULL\n";
+        }
+    
+    }
     void InitializeSwapchainAndRenderPass()
     {
         m_swapchain = std::make_shared<VulkanSwapchain>();
@@ -333,12 +331,17 @@ private:
 
     void InitializeDescriptors()
     {
-        m_descriptor = std::make_shared<VulkanDescriptor>();
+        m_descriptor = std::make_shared<VulkanDescriptor>(); 
         m_descriptor->Initialize(m_instance, m_device);
 
         m_descriptor->AddBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
+
+        m_descriptor->AddBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
+
         m_descriptor->Build(1);
         m_descriptor->BindBuffer(0, m_cameraUniformBuffer.buffer, sizeof(CameraUBO));
+
+        m_descriptor->BindImage(1, m_brickTexture->GetImageView(), m_brickTexture->GetSampler());
 
         m_pendingPipelineConfig.descriptorSetLayouts = { m_descriptor->GetLayout() };
         m_pipeline->Initialize(m_instance, m_device, m_renderPass, m_pendingPipelineConfig);
@@ -515,11 +518,18 @@ private:
     AllocatedBuffer m_ModelIndexBuffer;
     AllocatedBuffer m_modelVertexBuffer;
 
+    TextureManager m_textureManager; 
+    VulkanImage m_imageManager; 
+    VulkanImageView m_imageViewManager; 
+
+    std::shared_ptr<Texture> m_brickTexture;
+
     GraphicsPipelineConfig m_pendingPipelineConfig{};
     Model::ModelMesh m_model;
     uint32_t m_modelIndexCount = 0;
     float m_rotation = 0.0f;
     int maxFOV = 90; 
+    float r{ 0 }, b{ 0 }, g{ 0 }, alpha{ 1 };
 };
 
 

@@ -6,6 +6,23 @@
 ![Platform](https://img.shields.io/badge/Platform-Windows%20(Win32)-lightgrey.svg)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 
+Update 3: Texture System
+
+Added texture loading to the engine:
+- Can load images (JPG, PNG, etc.) from files
+- Textures cache automatically so they load once
+- Falls back to white texture if file not found
+- Models now display textures with UV mapping
+
+Classes added:
+- VulkanImage
+- VulkanImageView  
+- Texture
+- TextureManager
+
+Shaders updated to sample textures with lighting
+
+---
 # Update 2.1
 ![Building](Docs/Images/LIGHTING_FIRST.png)
 

@@ -25,10 +25,14 @@ void Application::Run() {
 		Update(deltaTime); 
 		Render();
 		const float frameTime = std::chrono::duration<float>(chronoHighResClock::now() - timeNow).count();
+		/*
+		
 		{
 			using namespace std; 
 			std::cout << "FPS: " << 1.0f / deltaTime << '\n'; 
 		}
+	
+		*/
 		if (options.capped)
 		{
 			if (frameTime < targetFrameTime) {
