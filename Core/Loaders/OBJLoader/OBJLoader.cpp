@@ -1,8 +1,108 @@
 ﻿#include "OBJLoader.h"
-#include <climits>
 #include <filesystem>
+#include <climits>
+#include <print>
+#include "../../MaterialHandler/Material.h"
 
-bool OBJLoader::Load(const std::string& filepath, Model::ModelMesh& outModel)
+namespace fs = std::filesystem;  
+
+
+static bool ParseMTLFile(
+    const fs::path& mtlpath,
+    std::vector<Material::MaterialInfo>& outMaterials,
+    std::unordered_map<std::string, int32_t>& outName
+)
+{
+    std::ifstream file; 
+    
+    file.open(mtlpath); 
+
+    if (!file.is_open())
+    {
+        return false; 
+    }
+
+    bool has_current = false; 
+
+    std::string line; 
+    int numOfLines{ 0 };    
+
+    Material::MaterialInfo curr{};
+
+    auto flushCurr = [&]()
+        {
+            if (!has_current)
+            {
+                return; 
+            }
+            
+            if (!outName.contains(curr.name))
+            {
+                int32_t idx = (int32_t)(outMaterials.size()); 
+                outMaterials.emplace_back(curr);
+                outName[curr.name] = idx; 
+            }
+
+            curr = {}; 
+            has_current = false;
+     };
+
+    while (std::getline(file, line))
+    {
+        ++numOfLines; 
+
+        if (line.empty() || line[0] == '#')
+            continue;
+
+        std::istringstream ls(line);
+        std::string tag;
+        ls >> tag;
+
+        if (tag == "newmtl")
+        {
+            flushCurr(); 
+            ls >> curr.name; 
+            has_current = !curr.name.empty(); 
+        }
+        else if (tag == "Kd" && has_current)
+        {
+            float r, g, b; 
+            if (ls >> r >> g >> b)
+            {
+                curr.kd = glm::vec3(r, g, b); 
+            }
+        }
+        else if (tag == "map_Kd" && has_current)
+        {
+            std::getline(ls, curr.diffuseMapPath);
+
+            curr.diffuseMapPath.erase(
+                curr.diffuseMapPath.begin(),
+                std::find_if(curr.diffuseMapPath.begin(), curr.diffuseMapPath.end(),
+                    [](unsigned char ch) { return !std::isspace(ch); })
+            );
+
+            std::replace(curr.diffuseMapPath.begin(), curr.diffuseMapPath.end(), '\\', '/'); 
+        }
+        else if ((tag == "map_Bump" || tag == "bump") && has_current)
+        {
+            std::getline(ls, curr.normalMapPath);
+
+            curr.normalMapPath.erase(
+                curr.normalMapPath.begin(),
+                std::find_if(curr.normalMapPath.begin(), curr.normalMapPath.end(),
+                    [](unsigned char ch) { return !std::isspace(ch); })
+            );
+            std::replace(curr.normalMapPath.begin(), curr.normalMapPath.end(), '\\', '/');
+        }
+    }
+
+    flushCurr(); 
+
+    return true; 
+}
+
+bool OBJLoader::Load(const std::string& filepath, Model::ModelMesh& outModel, Model::ModelData* outData)
 {
     Model::ModelData data;
     data.name = filepath;
@@ -14,6 +114,11 @@ bool OBJLoader::Load(const std::string& filepath, Model::ModelMesh& outModel)
         return false;
 
     outModel.BuildFromData(data);
+
+    if (outData)
+    {
+        *outData = data; 
+    }
 
     return true;
 }
@@ -136,6 +241,35 @@ void OBJLoader::FixIndices(int& posIndex, int& texIndex, int& normIndex,
     }
 }
 
+static bool FindMTLFileInDir(std::string location, std::string& MTLName, std::string& FoundLocation)
+{
+    if (!fs::exists(location) || !fs::is_directory(location))
+        return false;
+
+    for (auto const& direct : fs::directory_iterator(location))
+    {
+        if (direct.is_regular_file() &&
+            direct.path().extension() == ".mtl" &&
+            direct.path().filename() == MTLName
+            )
+        {
+            FoundLocation = direct.path().string();
+            return true;
+        }
+        if (direct.is_directory())
+        {
+            if (FindMTLFileInDir(direct.path().string(), MTLName, FoundLocation))
+            {
+                return true;
+            }
+        }
+
+    }
+
+    return false;
+}
+
+
 bool OBJLoader::ParseOBJ(const std::string& filepath, Model::ModelData& data)
 {
     std::ifstream file;
@@ -153,6 +287,8 @@ bool OBJLoader::ParseOBJ(const std::string& filepath, Model::ModelData& data)
     int normalCount = 0;
     int texCoordCount = 0;
     int faceCount = 0;
+    int currentMaterial = -1; 
+    std::unordered_map<std::string, int32_t> lookup; 
 
     while (std::getline(file, line))
     {
@@ -165,7 +301,29 @@ bool OBJLoader::ParseOBJ(const std::string& filepath, Model::ModelData& data)
         std::string tag;
         ls >> tag;
 
-        if (tag == "v")
+        if(tag == "mtllib")
+        {
+            std::string filepath; 
+            ls >> filepath; 
+            if (filepath.size() < 4 || filepath.substr(filepath.size() - 4) != ".mtl")
+                filepath += ".mtl";
+            
+            std::string locationOfMTL; 
+            if (FindMTLFileInDir("./Models", filepath, locationOfMTL))
+            {
+                if (ParseMTLFile(locationOfMTL, data.materials, lookup))
+                {
+                    std::println("Object Loader Loaded MTL File Successfully: {}", locationOfMTL); 
+                }
+            }
+        }
+        else if (tag == "usemtl")
+        {
+            std::string name; 
+            ls >> name; 
+            currentMaterial = (lookup.contains(name)) ? lookup[name] : -1; 
+        }
+        else if (tag == "v")
         {
             float x, y, z;
             ls >> x >> y >> z;
@@ -187,7 +345,7 @@ bool OBJLoader::ParseOBJ(const std::string& filepath, Model::ModelData& data)
             float u, v;
             if (ls >> u >> v)
             {
-                data.texCoords.emplace_back(u, v);
+                data.texCoords.emplace_back(u, 1.0f - v);
                 data.hasTexCoords = true;
                 texCoordCount++;
             }
@@ -233,6 +391,8 @@ bool OBJLoader::ParseOBJ(const std::string& filepath, Model::ModelData& data)
                     data.faceVertices.push_back(faceVerts[0]);
                     data.faceVertices.push_back(faceVerts[i]);
                     data.faceVertices.push_back(faceVerts[i + 1]);
+
+                    data.materialIndexPerTriangle.push_back(currentMaterial); 
                 }
             }
         }

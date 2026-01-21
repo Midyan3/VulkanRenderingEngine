@@ -19,6 +19,7 @@ public:
         InitializeCommandsAndSync();
         InitializeMemoryAndGeometry();
         InitializeTextureManager(); 
+        LoadModelTextures(); 
         InitalizeImGui(); 
         InitializeDescriptors();
         HookInput();
@@ -161,6 +162,7 @@ private:
             m_device.get(), m_commandBuffer.get());
 
         m_brickTexture = m_textureManager.GetTexture("Textures/brick.jpg");
+        m_defaultDiffuseTexture = m_textureManager.GetTexture("__white__");
      
         if (m_brickTexture) {
             std::cout << "   ImageView: " << (void*)m_brickTexture->GetImageView() << "\n";
@@ -277,7 +279,8 @@ private:
         pushConstantRange.size = sizeof(glm::mat4) + sizeof(glm::vec3);
         modelConfig.pushConstantRanges = { pushConstantRange };
         modelConfig.viewport = m_swapchain->GetExtent();
-        modelConfig.cullMode = VK_CULL_MODE_FRONT_BIT; 
+        modelConfig.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+        modelConfig.cullMode = VK_CULL_MODE_BACK_BIT;
 
         m_pendingPipelineConfig = modelConfig;
     }
@@ -345,6 +348,8 @@ private:
 
         m_pendingPipelineConfig.descriptorSetLayouts = { m_descriptor->GetLayout() };
         m_pipeline->Initialize(m_instance, m_device, m_renderPass, m_pendingPipelineConfig);
+
+        
     }
 
     struct PushConstants {
@@ -352,27 +357,19 @@ private:
         glm::vec3 light;
     };
 
+     bool yes = false; 
+
     void DrawModel(VkCommandBuffer cmd)
     {
         CameraUBO cameraData{};
         cameraData.view = m_camera->GetViewMatrix();
         cameraData.projection = m_camera->GetProjectionMatrix(
-            static_cast<float>(m_swapchain->GetExtent().width) /
-            static_cast<float>(m_swapchain->GetExtent().height)
+            (float)m_swapchain->GetExtent().width /
+            (float)m_swapchain->GetExtent().height
         );
         m_allocator->UploadDataToBuffer(m_cameraUniformBuffer, &cameraData, sizeof(CameraUBO));
 
         m_pipeline->Bind(cmd);
-
-        VkDescriptorSet descriptorSet = m_descriptor->GetSet();
-        vkCmdBindDescriptorSets(
-            cmd,
-            VK_PIPELINE_BIND_POINT_GRAPHICS,
-            m_pipeline->GetLayout(),
-            0, 1,
-            &descriptorSet,
-            0, nullptr
-        );
 
         VkBuffer vertexBuffers[] = { m_modelVertexBuffer.buffer };
         VkDeviceSize offsets[] = { 0 };
@@ -383,9 +380,9 @@ private:
         model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1, 0, 0));
         model = glm::rotate(model, glm::radians(m_rotation), glm::vec3(0, 1, 0));
 
-        PushConstants ps{}; 
+        PushConstants ps{};
         ps.model = model;
-        ps.light = glm::vec3(5.0f , 5.0f, 5.0f);
+        ps.light = glm::vec3(5.0f, 5.0f, 5.0f);
 
         vkCmdPushConstants(
             cmd,
@@ -396,15 +393,83 @@ private:
             &ps
         );
 
-        vkCmdDrawIndexed(cmd, m_modelIndexCount, 1, 0, 0, 0);
+        for (const auto& subMesh : m_model.subMeshes)
+        {
+            VkDescriptorSet set = VK_NULL_HANDLE;
+            if (!yes)
+            {
+                std::cout << "SubMesh material id: " << subMesh.material << "\n";
+           
+            }
+            if (subMesh.material >= 0 && subMesh.material < (int)m_materialDescriptors.size())
+            {
+                set = m_materialDescriptors[subMesh.material]->GetSet();
+            }
+            else
+            {
+                set = m_descriptor->GetSet(); 
+            }
+
+            vkCmdBindDescriptorSets(
+                cmd,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                m_pipeline->GetLayout(),
+                0, 1,
+                &set,
+                0, nullptr
+            );
+
+            vkCmdDrawIndexed(cmd, subMesh.indexCount, 1, subMesh.offset, 0, 0);
+        }
+        yes = true;
+    }
+
+
+    void LoadModelTextures()
+    {
+        if (!m_Data.GetTriangleCount()) return;
+        if (m_Data.materials.empty()) return;
+
+        m_materialDescriptors.resize(m_Data.materials.size());
+
+        for (size_t i = 0; i < m_Data.materials.size(); ++i)
+        {
+            std::string path = m_Data.materials[i].diffuseMapPath;
+            std::cout << "Descriptor[" << i << "] uses " << path << "\n";
+
+
+            if (path.empty())
+                path = "__white__"; 
+
+            auto tex = m_textureManager.LoadTexture(path) ? m_textureManager.GetTexture(path) : m_textureManager.GetTexture("__white__"); 
+
+
+            auto& p = m_materialDescriptors[i];
+            p = std::make_shared<VulkanDescriptor>();
+
+            p->Initialize(m_instance, m_device);
+            p->AddBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
+            p->AddBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
+
+            p->Build(1);
+
+            p->BindBuffer(0, m_cameraUniformBuffer.buffer, sizeof(CameraUBO));
+            p->BindImage(1, tex->GetImageView(), tex->GetSampler());
+
+            std::println("Material {} uses texture {}", i, path);
+        }
     }
 
     void LoadModel()
     {
         std::cout << "LoadModel: START\n";
-        auto loader = ModelLoader::CreateLoader("Models/Residential Buildings 010.obj");
 
-        if (loader && loader->Load("Models/Residential Buildings 010.obj", m_model))
+
+        auto loader = ModelLoader::CreateLoader("Models/Cake/Cake.obj");
+
+
+
+        if (loader && loader->Load("Models/Cake/Cake.obj", m_model, &m_Data))
         {
             std::cout << "After Load:\n";
             std::cout << "  Vertices: " << m_model.vertices.size() << "\n";
@@ -433,8 +498,13 @@ private:
 
             m_modelIndexCount = static_cast<uint32_t>(m_model.GetIndexCount());
         }
-    }
 
+        for (const auto names : m_Data.materials)
+        {
+            std::println("Mat {}", names.diffuseMapPath); 
+        }
+    }
+    
     void HookInput()
     {
         m_window->SetUpMouseAndKeyboard();
@@ -507,6 +577,14 @@ private:
     std::shared_ptr<Window> m_window;
     std::shared_ptr<VulkanDescriptor> m_descriptor;
     std::unique_ptr<Camera> m_camera;
+    Model::ModelData m_Data; 
+
+    std::vector<std::shared_ptr<VulkanDescriptor>> m_materialDescriptors;
+    std::vector<std::shared_ptr<Texture>> m_materialDiffuseTextures;
+
+    std::shared_ptr<VulkanDescriptor> m_defaultMaterialDescriptor;
+    std::shared_ptr<Texture> m_defaultDiffuseTexture;
+
 
     VkDescriptorPool m_imguiPool = VK_NULL_HANDLE;
 

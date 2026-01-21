@@ -116,7 +116,7 @@ add_executable(OwnGameEngine
     Core/Renderer/VertexTypes/ModelVertex.h
     ${IMGUI_SOURCES}
     ${STB_IMAGE}
- "Core/Renderer/TextureLoader/Texture.cpp" "Core/Renderer/TextureLoader/Texture.h" "Core/Renderer/VulkanImage/VulkanImage.h" "Core/Renderer/VulkanImage/VulkanImage.cpp" "Core/Renderer/VulkanImageView/VulkanImageView.cpp" "Core/Renderer/VulkanImageView/VulkanImageView.h" "Core/TextureManager/Vulkan/TextureManager.cpp" "Core/TextureManager/Vulkan/TextureManager.h" "App/main.h")
+ "Core/Renderer/TextureLoader/Texture.cpp" "Core/Renderer/TextureLoader/Texture.h" "Core/Renderer/VulkanImage/VulkanImage.h" "Core/Renderer/VulkanImage/VulkanImage.cpp" "Core/Renderer/VulkanImageView/VulkanImageView.cpp" "Core/Renderer/VulkanImageView/VulkanImageView.h" "Core/TextureManager/Vulkan/TextureManager.cpp" "Core/TextureManager/Vulkan/TextureManager.h" "App/main.h" "Core/MaterialHandler/Material.cpp" "Core/MaterialHandler/Material.h")
 
 add_custom_command(
     TARGET OwnGameEngine POST_BUILD

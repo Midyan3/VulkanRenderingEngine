@@ -36,6 +36,8 @@ public:
     void Cleanup();
     bool IsInitialized() const;
 
+    bool LoadTexture(const std::string& path); 
+
     std::shared_ptr<Texture> GetTexture(
         const std::string& filepath,
         const SamplerOptions& samplerOpts = SamplerOptions::DefaultLinear());

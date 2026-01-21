@@ -11,7 +11,7 @@ class ModelLoader
 public:
     virtual ~ModelLoader() = default;
 
-    virtual bool Load(const std::string& filepath, Model::ModelMesh& outModel) = 0;
+    virtual bool Load(const std::string& filepath, Model::ModelMesh& outModel, Model::ModelData* out = nullptr) = 0;
 
     virtual std::string GetSupportedExtension() const = 0;
 

@@ -11,7 +11,7 @@ public:
     OBJLoader() = default;
     ~OBJLoader() override = default;
 
-    bool Load(const std::string& filepath, Model::ModelMesh& outModel) override;
+    bool Load(const std::string& filepath, Model::ModelMesh& outModel, Model::ModelData* out = nullptr) override;
     std::string GetSupportedExtension() const override { return "obj"; }
 
 private:

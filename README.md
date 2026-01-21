@@ -6,7 +6,15 @@
 ![Platform](https://img.shields.io/badge/Platform-Windows%20(Win32)-lightgrey.svg)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 
-Update 3: Texture System
+# Update 4: Full OBJ Support, texture, and fixes
+
+![Cake](Docs/Images/CAKE!!!.png)
+
+- Added Full texture support for OBJ models. 
+- MTL parser added. 
+- Adding full texture loading capabilities to TextureManager class. 
+
+# Update 3: Texture System
 
 ![Texture_Building](Docs/Images/TEXTURE_UPDATE_3.png)
 

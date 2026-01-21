@@ -5,8 +5,11 @@
 #include <map>
 #include <tuple>
 #include "../../Headers/GlmConfig.h"
+#include "../MaterialHandler/Material.h"
 #include "../Renderer/VertexTypes/ModelVertex.h"
+#include <unordered_map>
 #include <iostream>
+#include <algorithm>
 
 namespace Model
 {
@@ -16,12 +19,15 @@ namespace Model
         std::vector<glm::vec3> normals;
         std::vector<glm::vec2> texCoords;
         std::vector<glm::vec3> colors;
-
+        std::vector<int32_t> materialIndexPerTriangle;
+        std::vector<Material::MaterialInfo> materials; 
+   
         struct FaceVertex
         {
             int positionIndex = -1;
             int texCoordIndex = -1;
             int normalIndex = -1;
+            
         };
 
         std::vector<FaceVertex> faceVertices;
@@ -32,6 +38,7 @@ namespace Model
         bool hasTexCoords = false;
         bool hasColors = false;
 
+
         void Clear()
         {
             positions.clear();
@@ -40,7 +47,9 @@ namespace Model
             colors.clear();
             faceVertices.clear();
             indices.clear();
+            materials.clear(); 
             name.clear();
+            materialIndexPerTriangle.clear();
             hasNormals = false;
             hasTexCoords = false;
             hasColors = false;
@@ -48,87 +57,129 @@ namespace Model
 
         bool IsValid() const
         {
-            return !positions.empty() &&
-                !indices.empty() &&
-                (indices.size() % 3 == 0);
+            if (positions.empty()) return false;
+            if (faceVertices.empty()) return false;
+            if ((faceVertices.size() % 3) != 0) return false;
+
+            if (!materialIndexPerTriangle.empty())
+            {
+                if (materialIndexPerTriangle.size() != (faceVertices.size() / 3))
+                    return false;
+            }
+
+            return true;
         }
 
         size_t GetVertexCount() const { return positions.size(); }
         size_t GetIndexCount() const { return indices.size(); }
-        size_t GetTriangleCount() const { return indices.size() / 3; }
+        size_t GetTriangleCount() const { return faceVertices.size() / 3; }
+        size_t GetFaceVertexCount() const { return faceVertices.size(); }
     };
 
     struct ModelMesh
     {
+        struct SubMesh
+        {
+            uint32_t offset = 0; 
+            uint32_t indexCount = 0; 
+            int32_t material = -1; 
+        };
+
         std::vector<ModelVertex> vertices;
+        std::vector<SubMesh> subMeshes; 
         std::vector<uint32_t> indices;
         std::string name;
 
         void BuildFromData(const ModelData& data)
         {
-
+            Clear();
             name = data.name;
-            vertices.clear();
-            indices.clear();
 
-            std::map<std::tuple<int, int, int>, uint32_t> vertexMap;
+            // SAFE: include material in vertex key (avoids cross-material vertex sharing issues)
+            std::map<std::tuple<int, int, int, int>, uint32_t> vertexMap;
 
-            for (size_t i = 0; i < data.faceVertices.size(); ++i)
+            // materialIndex -> list of indices
+            std::unordered_map<int32_t, std::vector<uint32_t>> indicesByItsMaterial;
+
+
+            const size_t triCount = data.faceVertices.size() / 3;
+
+            for (size_t t = 0; t < triCount; ++t)
             {
-                const auto& fv = data.faceVertices[i];
+                const int32_t mat =
+                    (data.materialIndexPerTriangle.empty())
+                    ? -1
+                    : data.materialIndexPerTriangle[t];
 
-                if (i == 0)
+                // corners 0,1,2 of triangle t
+                for (int corner = 0; corner < 3; ++corner)
                 {
-                    std::cout << "First FaceVertex: pos=" << fv.positionIndex
-                        << " tex=" << fv.texCoordIndex
-                        << " norm=" << fv.normalIndex << "\n";
-                }
+                    const auto& fv = data.faceVertices[t * 3 + corner];
 
-                auto key = std::make_tuple(fv.positionIndex, fv.texCoordIndex, fv.normalIndex);
-                auto it = vertexMap.find(key);
+                    auto key = std::make_tuple(
+                        fv.positionIndex,
+                        fv.texCoordIndex,
+                        fv.normalIndex,
+                        mat
+                    );
 
-                if (it != vertexMap.end())
-                {
-                    indices.push_back(it->second);
-                }
-                else
-                {
-                    ModelVertex v;
+                    auto it = vertexMap.find(key);
 
-                    if (fv.positionIndex >= 0 && fv.positionIndex < data.positions.size())
+                    if (it != vertexMap.end())
                     {
-                        v.position = data.positions[fv.positionIndex];
+                        indicesByItsMaterial[mat].push_back(it->second);
                     }
                     else
                     {
-                        std::cout << "Invalid position index " << fv.positionIndex << "\n";
-                        v.position = glm::vec3(0.0f);
+                        ModelVertex v{};
+
+                        if (fv.positionIndex >= 0 && fv.positionIndex < (int)data.positions.size())
+                            v.position = data.positions[fv.positionIndex];
+                        else
+                            v.position = glm::vec3(0.0f);
+
+                        if (fv.normalIndex >= 0 && fv.normalIndex < (int)data.normals.size())
+                            v.normal = data.normals[fv.normalIndex];
+                        else
+                            v.normal = glm::vec3(0.0f, 0.0f, 1.0f);
+
+                        if (fv.texCoordIndex >= 0 && fv.texCoordIndex < (int)data.texCoords.size())
+                            v.texCoord = data.texCoords[fv.texCoordIndex];
+                        else
+                            v.texCoord = glm::vec2(0.0f);
+
+                        v.color = GenerateColorFromPosition(v.position);
+
+                        uint32_t newIndex = (uint32_t)vertices.size();
+                        vertices.push_back(v);
+
+                        vertexMap[key] = newIndex;
+                        indicesByItsMaterial[mat].push_back(newIndex);
                     }
-
-                    if (fv.normalIndex >= 0 && fv.normalIndex < data.normals.size())
-                        v.normal = data.normals[fv.normalIndex];
-                    else
-                        v.normal = glm::vec3(0.0f, 0.0f, 1.0f);
-
-                    if (fv.texCoordIndex >= 0 && fv.texCoordIndex < data.texCoords.size())
-                        v.texCoord = data.texCoords[fv.texCoordIndex];
-                    else
-                        v.texCoord = glm::vec2(0.0f);
-
-                    v.color = GenerateColorFromPosition(v.position);
-
-                    if (vertices.size() == 0)
-                    {
-                        std::cout << "First vertex created: pos={"
-                            << v.position.x << ", " << v.position.y << ", " << v.position.z
-                            << "} color={" << v.color.r << ", " << v.color.g << ", " << v.color.b << "}\n";
-                    }
-
-                    uint32_t newIndex = static_cast<uint32_t>(vertices.size());
-                    vertices.push_back(v);
-                    indices.push_back(newIndex);
-                    vertexMap[key] = newIndex;
                 }
+            }
+
+            indices.clear();
+            subMeshes.clear();
+
+            std::vector<int32_t> mats;
+            mats.reserve(indicesByItsMaterial.size());
+            for (auto& kv : indicesByItsMaterial) mats.push_back(kv.first);
+            std::sort(mats.begin(), mats.end());
+
+            for (int32_t mat : mats)
+            {
+                auto& bucket = indicesByItsMaterial[mat];
+                if (bucket.empty())
+                    continue;
+
+                SubMesh sm;
+                sm.material = mat;
+                sm.offset = (uint32_t)indices.size();
+                sm.indexCount = (uint32_t)bucket.size();
+
+                indices.insert(indices.end(), bucket.begin(), bucket.end());
+                subMeshes.push_back(sm);
             }
         }
 
@@ -160,5 +211,6 @@ namespace Model
         size_t GetTriangleCount() const { return indices.size() / 3; }
         size_t GetVertexBufferSize() const { return vertices.size() * sizeof(ModelVertex); }
         size_t GetIndexBufferSize() const { return indices.size() * sizeof(uint32_t); }
+
     };
 }

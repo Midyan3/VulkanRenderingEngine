@@ -1,4 +1,8 @@
 #include "TextureManager.h"
+#include <print>
+#include <filesystem>
+
+namespace fs = std::filesystem; 
 
 const Debug::DebugOutput TextureManager::DebugOut;
 
@@ -195,6 +199,95 @@ std::shared_ptr<Texture> TextureManager::CreateTextureFromPixels(
     return texture;
 }
 
+static bool FindTexture(const std::string& nameOfFile, const std::string& currentDir, std::string& foundLocation)
+{
+    if (nameOfFile.empty() || currentDir.empty())
+        return false;
+
+    for (const auto& entry : fs::directory_iterator(currentDir))
+    {
+        if (entry.is_regular_file() && entry.path().filename().string() == nameOfFile)
+        {
+            foundLocation = entry.path().string();
+            return true;
+        }
+
+        if (entry.is_directory())
+        {
+            if (FindTexture(nameOfFile, entry.path().string(), foundLocation))
+                return true;
+        }
+    }
+
+    return false;
+}
+
+bool TextureManager::LoadTexture(const std::string& path)
+{
+    if (!IsInitialized())
+    {
+        ReportWarning("Failed to load texture: TextureManager not initialized. 0x0000E500");
+        return false;
+    }
+
+    if (path.empty())
+    {
+        ReportWarning("Failed to load texture: path empty. 0x0000E505");
+        return false;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(mux_lock);
+        auto it = m_textureCache.find(path);
+        if (it != m_textureCache.end())
+            return true;
+    }
+
+    std::string resolved = path;
+
+    std::replace(resolved.begin(), resolved.end(), '\\', '/');
+
+    std::string foundLocation;
+
+    if (fs::exists(resolved) && fs::is_regular_file(resolved))
+    {
+        foundLocation = resolved;
+    }
+    else
+    {
+        std::string filename = fs::path(resolved).filename().string();
+
+        if (!FindTexture(filename, ".", foundLocation))
+        {
+            ReportWarning("Failed to load texture: Unable to find texture: " + path + ". 0x0000E515");
+            return false;
+        }
+    }
+
+    auto temp = std::make_shared<Texture>();
+    if (!temp->Initialize(m_imageManager, m_viewManager, m_device))
+    {
+        ReportWarning("Failed to load texture: Failed to init Texture. 0x0000E510");
+        return false;
+    }
+
+    if (!temp->LoadFromFile(foundLocation, m_cmdBuffer))
+    {
+        ReportWarning("Failed to load texture: LoadFromFile failed: " + foundLocation + ". 0x0000E520");
+        return false;
+    }
+
+    std::println("Successfully loaded path : {} (Maybe resolved path)", foundLocation); 
+
+    {
+        std::lock_guard<std::mutex> lock(mux_lock);
+        m_textureCache[path] = temp;
+        m_textureCache[foundLocation] = temp;
+    }
+
+    return true;
+}
+
 bool TextureManager::CreateDefaultTextures()
 {
     unsigned char whitePixels[4] = { 255, 255, 255, 255 };
@@ -203,6 +296,11 @@ bool TextureManager::CreateDefaultTextures()
     {
         ReportError("Failed to create white texture. 0x0000E300");
         return false;
+    }
+    
+    {
+        std::lock_guard<std::mutex> lock(mux_lock);
+        m_textureCache["__white__"] = m_whiteTexture;
     }
 
     unsigned char blackPixels[4] = { 0, 0, 0, 255 };
@@ -213,6 +311,12 @@ bool TextureManager::CreateDefaultTextures()
         return false;
     }
 
+    {
+        std::lock_guard<std::mutex> lock(mux_lock);
+        m_textureCache["__black__"] = m_blackTexture;
+    }
+
+
     unsigned char normalPixels[4] = { 128, 128, 255, 255 };
     m_defaultNormalTexture = CreateTextureFromPixels("__normal__", normalPixels, 1, 1);
     if (!m_defaultNormalTexture)
@@ -220,6 +324,12 @@ bool TextureManager::CreateDefaultTextures()
         ReportError("Failed to create normal texture. 0x0000E320");
         return false;
     }
+
+    {
+        std::lock_guard<std::mutex> lock(mux_lock);
+        m_textureCache["__normal__"] = m_defaultNormalTexture;
+    }
+
 
     return true;
 }

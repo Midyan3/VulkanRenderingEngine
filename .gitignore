@@ -5,6 +5,9 @@ obj/
 lib/
 dist/
 
+Models/Tree1/
+Models/yaretiz/
+
 .vscode/
 .idea/
 *.suo
@@ -44,6 +47,8 @@ compile_commands.json
 
 vcpkg_installed/
 .vcpkg/
+
+*_log.txt
 
 notes/
 *.bak
