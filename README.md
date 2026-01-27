@@ -6,6 +6,14 @@
 ![Platform](https://img.shields.io/badge/Platform-Windows%20(Win32)-lightgrey.svg)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 
+# Update 4.1: Added Depth Buffer Support
+
+![THE_ONE_PIECE_IS_REAL](Docs/Images/BUGGY_DEPTH.png)
+
+- Depth image creation with pipeline intergration
+- Framebuffer fixed to take depth images
+- Main function additions. 
+
 # Update 4: Full OBJ Support, texture, and fixes
 
 ![Cake](Docs/Images/CAKE!!!.png)
