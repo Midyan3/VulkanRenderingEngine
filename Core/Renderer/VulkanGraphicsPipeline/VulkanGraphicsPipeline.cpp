@@ -233,6 +233,8 @@ bool VulkanGraphicsPipeline::CreatePipeline()
 
     viewport.x = 0.0f;
     viewport.y = 0.0f;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
     viewport.height = static_cast<float>(m_config.viewport.height);
     viewport.width = static_cast<float>(m_config.viewport.width);
 

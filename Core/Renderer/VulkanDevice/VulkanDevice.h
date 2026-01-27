@@ -90,6 +90,9 @@ public:
     std::vector<VkSurfaceFormatKHR> GetSurfaceFormats(VkSurfaceKHR surface) const;
     std::vector<VkPresentModeKHR> GetPresentModes(VkSurfaceKHR surface) const;
 
+    bool FindDepthFormat(); 
+    VkFormat GetDepthFormat(); 
+
     // Sync
     void WaitIdle() const;
 
@@ -101,6 +104,8 @@ private:
     std::shared_ptr<VulkanInstance> m_instance;
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
     VkDevice m_device = VK_NULL_HANDLE;
+
+    VkFormat m_prefferedDepth; 
 
     // Queues
     VkQueue m_graphicsQueue = VK_NULL_HANDLE;

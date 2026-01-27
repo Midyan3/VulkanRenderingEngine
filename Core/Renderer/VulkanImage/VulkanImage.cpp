@@ -2,6 +2,25 @@
 
 const Debug::DebugOutput VulkanImage::DebugOut;
 
+static bool HasStencil(VkFormat fmt) 
+{
+    return fmt == VK_FORMAT_D32_SFLOAT_S8_UINT || fmt == VK_FORMAT_D24_UNORM_S8_UINT;
+}
+
+static VkImageAspectFlags AspectFromFormat(VkFormat fmt) 
+{
+    switch (fmt) {
+    case VK_FORMAT_D16_UNORM:
+    case VK_FORMAT_D32_SFLOAT:
+        return VK_IMAGE_ASPECT_DEPTH_BIT;
+    case VK_FORMAT_D32_SFLOAT_S8_UINT:
+    case VK_FORMAT_D24_UNORM_S8_UINT:
+        return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+    default:
+        return VK_IMAGE_ASPECT_COLOR_BIT;
+    }
+}
+
 VulkanImage::VulkanImage()
 {
 }
@@ -295,7 +314,7 @@ bool VulkanImage::TransitionLayout(
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; // Ignoring here | Not transferring bewteen
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; // Same reason here  
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER; 
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;  
+    barrier.subresourceRange.aspectMask = AspectFromFormat(image.format);
     barrier.subresourceRange.baseMipLevel = 0;
     
     barrier.subresourceRange.levelCount = image.mipLevels; 
@@ -328,7 +347,6 @@ bool VulkanImage::UploadData(
     size_t dataSize,
     bool transitionToShaderOptimal)  
 {
-    // Validation (all good!)
     if (!IsInitialized()) {
         ReportError("Not initialized. 0x00012000");
         return false;
@@ -388,7 +406,7 @@ bool VulkanImage::UploadData(
     region.bufferOffset = 0;
     region.bufferRowLength = 0;
     region.bufferImageHeight = 0;
-    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.aspectMask = AspectFromFormat(image.format);
     region.imageSubresource.mipLevel = 0;
     region.imageSubresource.baseArrayLayer = 0;
     region.imageSubresource.layerCount = 1;

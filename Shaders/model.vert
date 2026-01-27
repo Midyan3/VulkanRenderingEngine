@@ -24,7 +24,7 @@ void main() {
     vec4 world =  push.model * vec4(inPosition, 1.0);
     fragWorldPos = world.xyz;
     gl_Position = camera.projection * camera.view * world;
-    fragWorldNormal = mat3(push.model) * inNormal;
+    fragWorldNormal = normalize(mat3(transpose(inverse(push.model))) * inNormal);
     fragColor = inColor;
     fragTexCoord = inTexCoord; 
 }

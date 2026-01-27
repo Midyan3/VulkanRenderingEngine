@@ -100,9 +100,42 @@ bool VulkanDevice::Initialize(std::shared_ptr<VulkanInstance> instance,
 
 	RetrieveQueues();
 	QueryDeviceProperties();
+	if (!FindDepthFormat())
+	{
+		ReportError("Could not find a supported depth format. 0x00002040"); 
+		return false; 
+	}
 
 	return true; 
+}
 
+VkFormat VulkanDevice::GetDepthFormat()
+{
+	return m_prefferedDepth; 
+}
+
+bool VulkanDevice::FindDepthFormat()
+{
+	if (m_physicalDevice == VK_NULL_HANDLE)
+		return false; 
+	std::vector<VkFormat> candid = { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT };
+
+	VkFormatFeatureFlags features = VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT; 
+
+	for (const auto& format : candid)
+	{
+		VkFormatProperties Props; 
+		
+		vkGetPhysicalDeviceFormatProperties(m_physicalDevice, format, &Props); 
+
+		if ((Props.optimalTilingFeatures & features) == features)
+		{
+			m_prefferedDepth = format; 
+			return true; 
+		}
+	}
+
+	return false; 
 }
 
 void VulkanDevice::QueryDeviceProperties()

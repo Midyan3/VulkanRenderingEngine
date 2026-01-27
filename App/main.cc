@@ -14,11 +14,12 @@ public:
         InitializeCore();
         InitializeWindowAndSurface();
         InitializeSwapchainAndRenderPass();
-        InitializeFramebuffers();
         InitializePipelineModel();
         InitializeCommandsAndSync();
         InitializeMemoryAndGeometry();
         InitializeTextureManager(); 
+        InitDepth(); 
+        InitializeFramebuffers();
         LoadModelTextures(); 
         InitalizeImGui(); 
         InitializeDescriptors();
@@ -180,7 +181,53 @@ private:
 
         m_renderPass = std::make_shared<VulkanRenderPass>();
         RenderPassConfig config = RenderPassConfig::SingleColorAttachment(m_swapchain->GetFormat());
+        RenderPassAttachment depth = RenderPassAttachment::DepthAttachment(m_device->GetDepthFormat()); 
+
+        config.attachments.push_back(std::move(depth)); 
+        config.subpasses[0].depthAttachment = 1; 
+        
         m_renderPass->Initialize(m_instance, m_device, config);
+
+    }
+
+    void InitDepth()
+    {
+
+
+        UINT8 count = (UINT8)m_swapchain->GetImageCount();
+
+        m_depthImages.resize(count);
+
+        for (size_t i = 0; i < count; i++)
+        {
+            TextureInfo& depth = m_depthImages[i];
+            VkExtent2D extent = m_swapchain->GetExtent();
+            ImageOptions opts =
+            {
+                .width = extent.width,
+                .height = extent.height,
+                .format = m_device->GetDepthFormat(),
+                .mipLevels = 1,
+                .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+            };
+
+            depth = {};
+
+            if (!m_imageManager.CreateImage(ImageCreateInfo::FromOptions(opts), depth.image))
+            {
+                std::println("Failed to create depth image");
+            }
+
+            ImageViewOptions viewOpts{};
+
+            viewOpts.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+
+            if (!m_imageViewManager.CreateView(depth.image, depth.imageView, viewOpts))
+            {
+                std::println("Failed to create depth image");
+            }
+
+        }
     }
 
     void InitializeFramebuffers()
@@ -195,7 +242,7 @@ private:
                 m_instance,
                 m_device,
                 m_renderPass,
-                { m_swapchain->GetImageView(i) },
+                { m_swapchain->GetImageView(i), m_depthImages[i].imageView.view},
                 m_swapchain->GetExtent().width,
                 m_swapchain->GetExtent().height
             );
@@ -280,7 +327,10 @@ private:
         modelConfig.pushConstantRanges = { pushConstantRange };
         modelConfig.viewport = m_swapchain->GetExtent();
         modelConfig.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-        modelConfig.cullMode = VK_CULL_MODE_BACK_BIT;
+        modelConfig.cullMode = VK_CULL_MODE_NONE;
+        modelConfig.depthTestEnable = VK_TRUE; 
+        modelConfig.depthWriteEnable = VK_TRUE; 
+        modelConfig.depthCompareOp = VK_COMPARE_OP_LESS; 
 
         m_pendingPipelineConfig = modelConfig;
     }
@@ -465,11 +515,11 @@ private:
         std::cout << "LoadModel: START\n";
 
 
-        auto loader = ModelLoader::CreateLoader("Models/Cake/Cake.obj");
+        auto loader = ModelLoader::CreateLoader("Models/Buggy/buggy.obj");
 
 
 
-        if (loader && loader->Load("Models/Cake/Cake.obj", m_model, &m_Data))
+        if (loader && loader->Load("Models/Buggy/buggy.obj", m_model, &m_Data))
         {
             std::cout << "After Load:\n";
             std::cout << "  Vertices: " << m_model.vertices.size() << "\n";
@@ -584,7 +634,8 @@ private:
 
     std::shared_ptr<VulkanDescriptor> m_defaultMaterialDescriptor;
     std::shared_ptr<Texture> m_defaultDiffuseTexture;
-
+    
+    std::vector<TextureInfo> m_depthImages; 
 
     VkDescriptorPool m_imguiPool = VK_NULL_HANDLE;
 

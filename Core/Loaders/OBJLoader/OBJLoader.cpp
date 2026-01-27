@@ -311,10 +311,19 @@ bool OBJLoader::ParseOBJ(const std::string& filepath, Model::ModelData& data)
             std::string locationOfMTL; 
             if (FindMTLFileInDir("./Models", filepath, locationOfMTL))
             {
+                std::println("Now parsing {}", locationOfMTL); 
                 if (ParseMTLFile(locationOfMTL, data.materials, lookup))
                 {
                     std::println("Object Loader Loaded MTL File Successfully: {}", locationOfMTL); 
                 }
+                else
+                {
+                    std::println("Someting wong", locationOfMTL);
+                }
+            }
+            else
+            {
+                std::println("Failed to load: {}", locationOfMTL);
             }
         }
         else if (tag == "usemtl")
